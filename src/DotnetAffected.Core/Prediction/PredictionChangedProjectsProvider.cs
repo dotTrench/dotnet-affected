@@ -66,7 +66,7 @@ namespace DotnetAffected.Core
         }
 
         /// <inheritdoc />
-        public IEnumerable<ProjectGraphNode> GetReferencingProjects(IReadOnlyList<string> files)
+        public IEnumerable<ProjectGraphNode> GetReferencingProjects(IEnumerable<string> files)
         {
             // normalize paths so that they match on windows.
             var normalizedFiles = files
@@ -120,11 +120,11 @@ namespace DotnetAffected.Core
 
         private sealed class ChangedFileFileSystem : MSBuildFileSystemBase
         {
-            private readonly HashSet<string> _files;
+            private readonly List<string> _files;
 
-            public ChangedFileFileSystem(IEnumerable<string> files)
+            public ChangedFileFileSystem(List<string> files)
             {
-                _files = new HashSet<string>(files);
+                _files = files;
             }
 
             public override bool FileExists(string path)
