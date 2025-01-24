@@ -99,5 +99,32 @@ namespace DotnetAffected.Core.Tests
             Assert.Equal(projectName, projectInfo.GetProjectName());
             Assert.Equal(msBuildProject.FullPath, projectInfo.GetFullPath());
         }
+        
+        [Fact]
+        public async Task When_file_is_deleted_from_project_project_should_have_changed()
+        {
+            // Create a project
+            var projectName = "InventoryManagement";
+            var msBuildProject = Repository.CreateCsProject(projectName);
+            // Create a file with some changes
+            var targetFilePath = Path.Combine(projectName, "file.cs");
+            await this.Repository.CreateTextFileAsync(targetFilePath, "// Initial content");
+
+            // Make a commit and keep track of the sha
+            this._fromCommit = Repository.StageAndCommit()
+                .Sha;
+
+            this.Repository.DeleteFile(targetFilePath);
+            // Commit the changes
+            this._toCommit = Repository.StageAndCommit()
+                .Sha;
+
+            Assert.Single(AffectedSummary.ProjectsWithChangedFiles);
+            Assert.Empty(AffectedSummary.AffectedProjects);
+
+            var projectInfo = AffectedSummary.ProjectsWithChangedFiles.Single();
+            Assert.Equal(projectName, projectInfo.GetProjectName());
+            Assert.Equal(msBuildProject.FullPath, projectInfo.GetFullPath());
+        }
     }
 }
