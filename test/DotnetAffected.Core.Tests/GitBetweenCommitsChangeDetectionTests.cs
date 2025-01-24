@@ -45,9 +45,7 @@ namespace DotnetAffected.Core.Tests
             Assert.Equal(projectName, projectInfo.GetProjectName());
             Assert.Equal(msBuildProject.FullPath, projectInfo.GetFullPath());
         }
-        
-        
-        
+
         [Fact]
         public async Task When_has_removed_file_project_should_have_changed()
         {
@@ -58,7 +56,7 @@ namespace DotnetAffected.Core.Tests
             // Create a file with some changes
             var targetFilePath = Path.Combine(projectName, "file.cs");
             await this.Repository.CreateTextFileAsync(targetFilePath, "// Initial content");
-            
+
             // Make a commit and keep track of the sha
             this._fromCommit = Repository.StageAndCommit()
                 .Sha;
@@ -70,7 +68,32 @@ namespace DotnetAffected.Core.Tests
             this._toCommit = Repository.StageAndCommit()
                 .Sha;
 
-            var projectInfo =Assert.Single(AffectedSummary.ProjectsWithChangedFiles);
+            var projectInfo = Assert.Single(AffectedSummary.ProjectsWithChangedFiles);
+            Assert.Empty(AffectedSummary.AffectedProjects);
+
+            Assert.Equal(projectName, projectInfo.GetProjectName());
+            Assert.Equal(msBuildProject.FullPath, projectInfo.GetFullPath());
+        }
+
+
+        [Fact]
+        public async Task When_has_removed_unstaged_file_project_should_have_changed()
+        {
+            // Create a project
+            var projectName = "InventoryManagement";
+            var msBuildProject = Repository.CreateCsProject(projectName);
+
+            // Create a file with some changes
+            var targetFilePath = Path.Combine(projectName, "file.cs");
+            await this.Repository.CreateTextFileAsync(targetFilePath, "// Initial content");
+
+            // Make a commit and keep track of the sha
+            this._toCommit = Repository.StageAndCommit().Sha;
+
+
+            this.Repository.DeleteFile(targetFilePath);
+
+            var projectInfo = Assert.Single(AffectedSummary.ProjectsWithChangedFiles);
             Assert.Empty(AffectedSummary.AffectedProjects);
 
             Assert.Equal(projectName, projectInfo.GetProjectName());
