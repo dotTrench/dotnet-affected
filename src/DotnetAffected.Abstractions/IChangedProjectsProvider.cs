@@ -14,6 +14,6 @@ namespace DotnetAffected.Abstractions
         /// <param name="files"></param>
         /// <returns></returns>
         IEnumerable<ProjectGraphNode> GetReferencingProjects(
-            IEnumerable<string> files);
+            IReadOnlyList<string> files);
     }
 }

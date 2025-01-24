@@ -34,7 +34,7 @@ namespace DotnetAffected.Core.Tests
             // Assert
             var project1Node = Graph.FindNodeByPath(project1.FullPath);
             Assert.Single(projects);
-            Assert.Equal(project1Node, projects.Single());
+            Assert.Equal(project1Node?.GetFullPath(), projects.Single().GetFullPath());
         }
 
         [Fact]
@@ -58,7 +58,7 @@ namespace DotnetAffected.Core.Tests
             // Assert
             var project1Node = Graph.FindNodeByPath(project1.FullPath);
             Assert.Single(projects);
-            Assert.Equal(project1Node, projects.Single());
+            Assert.Equal(project1Node?.GetFullPath(), projects.Single().GetFullPath());
         }
 
         [Fact]
@@ -85,8 +85,8 @@ namespace DotnetAffected.Core.Tests
             var project2Node = Graph.FindNodeByPath(project2.FullPath);
 
             Assert.Collection(projects,
-                p => Assert.Equal(project1Node, p),
-                p => Assert.Equal(project2Node, p));
+                p => Assert.Equal(project1Node?.GetFullPath(), p.GetFullPath()),
+                p => Assert.Equal(project2Node?.GetFullPath(), p.GetFullPath()));
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace DotnetAffected.Core.Tests
             Assert.Single(projects);
 
             var project1Node = Graph.FindNodeByPath(project1.FullPath);
-            Assert.Equal(project1Node, projects.Single());
+            Assert.Equal(project1Node?.GetFullPath(), projects.Single().GetFullPath());
         }
     }
 }

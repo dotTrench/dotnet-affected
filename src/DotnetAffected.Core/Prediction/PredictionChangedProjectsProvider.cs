@@ -1,10 +1,17 @@
 ﻿using DotnetAffected.Abstractions;
+using Microsoft.Build.Definition;
+using Microsoft.Build.Evaluation;
+using Microsoft.Build.Evaluation.Context;
+using Microsoft.Build.Execution;
+using Microsoft.Build.FileSystem;
 using Microsoft.Build.Graph;
 using Microsoft.Build.Prediction;
 using Microsoft.Build.Prediction.Predictors;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
+using System.Threading;
 
 namespace DotnetAffected.Core
 {
@@ -43,7 +50,7 @@ namespace DotnetAffected.Core
             "Directory.Packages.props"
         };
 
-        private readonly string _repositoryPath;
+        private readonly IDiscoveryOptions _options;
 
         /// <summary>
         /// Creates the <see cref="PredictionChangedProjectsProvider"/>.
@@ -55,23 +62,46 @@ namespace DotnetAffected.Core
             IDiscoveryOptions options)
         {
             _graph = graph;
-            _repositoryPath = options.RepositoryPath;
+            _options = options;
         }
 
         /// <inheritdoc />
-        public IEnumerable<ProjectGraphNode> GetReferencingProjects(
-            IEnumerable<string> files)
+        public IEnumerable<ProjectGraphNode> GetReferencingProjects(IReadOnlyList<string> files)
         {
-            var hasReturned = new HashSet<string>();
-
-            var collector = new FilesByProjectGraphCollector(this._graph, this._repositoryPath);
-            _executor.PredictInputsAndOutputs(_graph, collector);
-
             // normalize paths so that they match on windows.
             var normalizedFiles = files
                 .Where(f => !_fileExclusions.Any(f.EndsWith))
-                .Select(Path.GetFullPath);
+                .Select(Path.GetFullPath)
+                .ToList();
 
+            var fs = new ChangedFileFileSystem(normalizedFiles);
+            var context = EvaluationContext.Create(EvaluationContext.SharingPolicy.Shared, fs);
+            ProjectGraph.ProjectInstanceFactoryFunc fn = (path, properties, collection) =>
+                ProjectInstance.FromFile(
+                    path,
+                    new ProjectOptions
+                    {
+                        ProjectCollection = collection, GlobalProperties = properties, EvaluationContext = context
+                    }
+                );
+
+            var entrypoints =
+                _graph
+                    .EntryPointNodes
+                    .Select(it => new ProjectGraphEntryPoint(it.ProjectInstance.FullPath));
+
+            var graph = new ProjectGraph(
+                entrypoints,
+                ProjectCollection.GlobalProjectCollection,
+                fn,
+                1,
+                CancellationToken.None
+            );
+
+            var collector = new FilesByProjectGraphCollector(graph, _options.RepositoryPath);
+            _executor.PredictInputsAndOutputs(graph, collector);
+
+            var hasReturned = new HashSet<string>();
             foreach (var file in normalizedFiles)
             {
                 // determine nodes depending on the changed file
@@ -85,6 +115,38 @@ namespace DotnetAffected.Core
                         yield return key;
                     }
                 }
+            }
+        }
+
+        private sealed class ChangedFileFileSystem : MSBuildFileSystemBase
+        {
+            private readonly HashSet<string> _files;
+
+            public ChangedFileFileSystem(IEnumerable<string> files)
+            {
+                _files = new HashSet<string>(files);
+            }
+
+            public override bool FileExists(string path)
+            {
+                return base.FileExists(path) || _files.Contains(path);
+            }
+
+
+            public override IEnumerable<string> EnumerateFiles(string path, string searchPattern = "*",
+                SearchOption searchOption = SearchOption.TopDirectoryOnly)
+            {
+                if (searchOption == SearchOption.AllDirectories)
+                {
+                    return _files
+                        .Where(it => it.StartsWith(path) && FileSystemName.MatchesWin32Expression(searchPattern, it))
+                        .Concat(base.EnumerateFiles(path, searchPattern, searchOption));
+                }
+
+                return _files
+                    .Where(it =>
+                        Path.GetDirectoryName(it) == path && FileSystemName.MatchesWin32Expression(searchPattern, it))
+                    .Concat(base.EnumerateFiles(path, searchPattern, searchOption));
             }
         }
     }
