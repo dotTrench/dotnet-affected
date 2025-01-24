@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
-using System.Threading;
 
 namespace DotnetAffected.Core
 {
@@ -93,9 +92,7 @@ namespace DotnetAffected.Core
             var graph = new ProjectGraph(
                 entrypoints,
                 ProjectCollection.GlobalProjectCollection,
-                fn,
-                1,
-                CancellationToken.None
+                fn
             );
 
             var collector = new FilesByProjectGraphCollector(graph, _options.RepositoryPath);
